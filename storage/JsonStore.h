@@ -19,6 +19,9 @@ public:
 
 signals:
     void dataChanged();
+
+private:
+    AppData m_data;
 };
 
 #endif // JSONSTORE_H
