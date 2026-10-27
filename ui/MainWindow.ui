@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="windowTitle"><string>校园自习室预约管理系统</string></property>
+  <property name="geometry"><rect><x>0</x><y>0</y><width>850</width><height>600</height></rect></property>
+  <widget class="QWidget" name="centralWidget">
+   <layout class="QVBoxLayout" name="verticalLayout">
+    <item><layout class="QHBoxLayout" name="headerLayout">
+     <item><widget class="QLabel" name="userLabel"><property name="text"><string/></property></widget></item>
+     <item><spacer name="headerSpacer"><property name="orientation"><enum>Qt::Horizontal</enum></property><property name="sizeHint"><size><width>40</width><height>20</height></size></property></spacer></item>
+     <item><widget class="QPushButton" name="refreshButton"><property name="text"><string>刷新</string></property></widget></item>
+     <item><widget class="QPushButton" name="logoutButton"><property name="text"><string>退出登录</string></property></widget></item>
+    </layout></item>
+    <item><widget class="QLabel" name="timeLabel"><property name="text"><string/></property></widget></item>
+    <item><widget class="QTabWidget" name="tabWidget"/></item>
+   </layout>
+  </widget>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

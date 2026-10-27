@@ -1,0 +1,9 @@
+.vs/
+bin/
+obj/
+x64/
+Debug/
+Release/
+*.vcxproj.user
+*.user
+study_room_data.json

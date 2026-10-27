@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="Current" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64"><Configuration>Debug</Configuration><Platform>x64</Platform></ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64"><Configuration>Release</Configuration><Platform>x64</Platform></ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{75AD5841-F0B3-4605-9D6C-94CD391C7A11}</ProjectGuid>
+    <Keyword>QtVS_v304</Keyword>
+    <RootNamespace>StudyRoomReservation</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <QtMsBuild Condition="'$(QtMsBuild)' == ''">$(LOCALAPPDATA)\QtMsBuild</QtMsBuild>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <PlatformToolset>v143</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+    <UseDebugLibraries Condition="'$(Configuration)' == 'Debug'">true</UseDebugLibraries>
+    <UseDebugLibraries Condition="'$(Configuration)' == 'Release'">false</UseDebugLibraries>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <Import Project="$(QtMsBuild)\qt_defaults.props" />
+  <PropertyGroup Label="QtSettings">
+    <QtInstall>6.11.2_msvc2022_64</QtInstall>
+    <QtModules>core;gui;widgets</QtModules>
+  </PropertyGroup>
+  <ImportGroup Label="PropertySheets"><Import Project="$(QtMsBuild)\Qt.props" /></ImportGroup>
+  <PropertyGroup>
+    <TargetName>StudyRoomReservation</TargetName>
+    <OutDir>$(ProjectDir)bin\$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>$(ProjectDir)obj\$(TargetName)\$(Platform)\$(Configuration)\</IntDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <WarningLevel>Level4</WarningLevel>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalIncludeDirectories>$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+    <PostBuildEvent>
+      <Command>&quot;$(QtInstallDir)\bin\windeployqt.exe&quot; --no-translations --no-compiler-runtime --no-opengl-sw --verbose 0 &quot;$(TargetPath)&quot;</Command>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="common\DemoData.cpp" />
+    <ClCompile Include="common\Rules.cpp" />
+    <ClCompile Include="storage\JsonStore.cpp" />
+    <ClCompile Include="managers\SeatManager.cpp" />
+    <ClCompile Include="managers\ReservationManager.cpp" />
+    <ClCompile Include="managers\AttendanceViolationManager.cpp" />
+    <ClCompile Include="managers\StatisticsManager.cpp" />
+    <ClCompile Include="ui\LoginDialog.cpp" />
+    <ClCompile Include="ui\MainWindow.cpp" />
+    <ClCompile Include="ui\SeatPage.cpp" />
+
+    <ClInclude Include="common\Models.h" />
+    <ClInclude Include="common\DemoData.h" />
+    <ClInclude Include="common\Rules.h" />
+    <ClInclude Include="managers\SeatManager.h" />
+    <ClInclude Include="managers\ReservationManager.h" />
+    <ClInclude Include="managers\AttendanceViolationManager.h" />
+    <ClInclude Include="managers\StatisticsManager.h" />
+    <ClInclude Include="ui\ReservationPage.h" />
+    <ClInclude Include="ui\AttendanceViolationPage.h" />
+    <ClInclude Include="ui\StatisticsPage.h" />
+    <QtMoc Include="storage\JsonStore.h" />
+    <QtMoc Include="ui\LoginDialog.h" />
+    <QtMoc Include="ui\MainWindow.h" />
+    <QtMoc Include="ui\SeatPage.h" />
+    <QtUic Include="ui\LoginDialog.ui" />
+    <QtUic Include="ui\MainWindow.ui" />
+    <QtUic Include="ui\SeatPage.ui" />
+    <None Include="ui\ReservationPage.ui" />
+    <None Include="ui\AttendanceViolationPage.ui" />
+    <None Include="ui\StatisticsPage.ui" />
+    <None Include="README.md" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <Import Project="$(QtMsBuild)\qt.targets" />
+</Project>

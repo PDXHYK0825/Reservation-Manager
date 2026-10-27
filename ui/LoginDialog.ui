@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>LoginDialog</class>
+ <widget class="QDialog" name="LoginDialog">
+  <property name="windowTitle"><string>自习室预约系统 - 登录</string></property>
+  <property name="minimumSize"><size><width>360</width><height>200</height></size></property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <item><layout class="QFormLayout" name="formLayout">
+    <item row="0" column="0"><widget class="QLabel" name="accountLabel"><property name="text"><string>账号</string></property></widget></item>
+    <item row="0" column="1"><widget class="QLineEdit" name="accountEdit"/></item>
+    <item row="1" column="0"><widget class="QLabel" name="passwordLabel"><property name="text"><string>密码</string></property></widget></item>
+    <item row="1" column="1"><widget class="QLineEdit" name="passwordEdit"><property name="echoMode"><enum>QLineEdit::Password</enum></property></widget></item>
+   </layout></item>
+   <item><widget class="QLabel" name="messageLabel"><property name="text"><string/></property></widget></item>
+   <item><layout class="QHBoxLayout" name="buttonLayout">
+    <item><widget class="QPushButton" name="loginButton"><property name="text"><string>登录</string></property></widget></item>
+    <item><widget class="QPushButton" name="exitButton"><property name="text"><string>退出</string></property></widget></item>
+   </layout></item>
+  </layout>
+ </widget>
+ <tabstops><tabstop>accountEdit</tabstop><tabstop>passwordEdit</tabstop><tabstop>loginButton</tabstop><tabstop>exitButton</tabstop></tabstops>
+ <resources/>
+ <connections/>
+</ui>

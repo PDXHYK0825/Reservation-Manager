@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="common"><UniqueIdentifier>{672E77DF-0519-451B-8E6B-99CCF52C8300}</UniqueIdentifier></Filter>
+    <Filter Include="managers"><UniqueIdentifier>{672E77DF-0519-451B-8E6B-99CCF52C8301}</UniqueIdentifier></Filter>
+    <Filter Include="storage"><UniqueIdentifier>{672E77DF-0519-451B-8E6B-99CCF52C8302}</UniqueIdentifier></Filter>
+    <Filter Include="ui"><UniqueIdentifier>{672E77DF-0519-451B-8E6B-99CCF52C8303}</UniqueIdentifier></Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="common\DemoData.cpp"><Filter>common</Filter></ClCompile>
+    <ClCompile Include="common\Rules.cpp"><Filter>common</Filter></ClCompile>
+    <ClCompile Include="storage\JsonStore.cpp"><Filter>storage</Filter></ClCompile>
+    <ClCompile Include="managers\SeatManager.cpp"><Filter>managers</Filter></ClCompile>
+    <ClCompile Include="managers\ReservationManager.cpp"><Filter>managers</Filter></ClCompile>
+    <ClCompile Include="managers\AttendanceViolationManager.cpp"><Filter>managers</Filter></ClCompile>
+    <ClCompile Include="managers\StatisticsManager.cpp"><Filter>managers</Filter></ClCompile>
+    <ClCompile Include="ui\LoginDialog.cpp"><Filter>ui</Filter></ClCompile>
+    <ClCompile Include="ui\MainWindow.cpp"><Filter>ui</Filter></ClCompile>
+    <ClCompile Include="ui\SeatPage.cpp"><Filter>ui</Filter></ClCompile>
+    <ClInclude Include="common\Models.h"><Filter>common</Filter></ClInclude>
+    <ClInclude Include="common\DemoData.h"><Filter>common</Filter></ClInclude>
+    <ClInclude Include="common\Rules.h"><Filter>common</Filter></ClInclude>
+    <ClInclude Include="managers\SeatManager.h"><Filter>managers</Filter></ClInclude>
+    <ClInclude Include="managers\ReservationManager.h"><Filter>managers</Filter></ClInclude>
+    <ClInclude Include="managers\AttendanceViolationManager.h"><Filter>managers</Filter></ClInclude>
+    <ClInclude Include="managers\StatisticsManager.h"><Filter>managers</Filter></ClInclude>
+    <ClInclude Include="ui\ReservationPage.h"><Filter>ui</Filter></ClInclude>
+    <ClInclude Include="ui\AttendanceViolationPage.h"><Filter>ui</Filter></ClInclude>
+    <ClInclude Include="ui\StatisticsPage.h"><Filter>ui</Filter></ClInclude>
+    <QtMoc Include="storage\JsonStore.h"><Filter>storage</Filter></QtMoc>
+    <QtMoc Include="ui\LoginDialog.h"><Filter>ui</Filter></QtMoc>
+    <QtMoc Include="ui\MainWindow.h"><Filter>ui</Filter></QtMoc>
+    <QtMoc Include="ui\SeatPage.h"><Filter>ui</Filter></QtMoc>
+    <QtUic Include="ui\LoginDialog.ui"><Filter>ui</Filter></QtUic>
+    <QtUic Include="ui\MainWindow.ui"><Filter>ui</Filter></QtUic>
+    <QtUic Include="ui\SeatPage.ui"><Filter>ui</Filter></QtUic>
+  </ItemGroup>
+</Project>
