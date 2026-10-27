@@ -1,15 +1,7 @@
-#include "JsonStore.h"
-
-#include "../common/Rules.h"
-
-#include <QCoreApplication>
-#include <QFile>
-#include <QJsonArray>
-#include <QJsonDocument>
-#include <QJsonObject>
-#include <QSaveFile>
-#include <QSet>
-#include <QUuid>
+// 成员 D：JSON 持久化与统计。
+#include "storage/JsonStore.h"
+#include "ui/MainWindow.h"
+#include "managers/ReservationManager.h"
 
 namespace {
 const QString kDateTimeFormat = QStringLiteral("yyyy-MM-dd'T'HH:mm");
@@ -96,7 +88,7 @@ bool parseReservation(const QJsonValue& value, Reservation& reservation,
     }
 
     const double seatId = object.value(QStringLiteral("seatId")).toDouble();
-    if (seatId != static_cast<int>(seatId)) {
+    if (seatId < 1 || seatId > DemoData::seatCount || seatId != static_cast<int>(seatId)) {
         error = QStringLiteral("预约记录的座位编号无效。");
         return false;
     }
@@ -110,35 +102,6 @@ bool parseReservation(const QJsonValue& value, Reservation& reservation,
         reservation.flag = ReservationFlag::Terminated;
     else {
         error = QStringLiteral("预约记录的状态值无效。");
-        return false;
-    }
-
-    if (!isUuid(reservation.id) || reservation.studentAccount.trimmed().isEmpty()
-        || reservation.seatId < 1 || reservation.seatId > 20
-        || !reservation.startTime.isValid() || !reservation.endTime.isValid()
-        || reservation.endTime <= reservation.startTime
-        || !isHalfHourAligned(reservation.startTime)
-        || !isHalfHourAligned(reservation.endTime)) {
-        error = QStringLiteral("预约记录包含无效编号、时间或座位信息。");
-        return false;
-    }
-
-    if (reservation.checkedInAt.isValid()
-        && (reservation.checkedInAt < reservation.startTime
-            || reservation.checkedInAt >= reservation.endTime)) {
-        error = QStringLiteral("预约记录中的签到时间不在预约时段内。");
-        return false;
-    }
-
-    const bool isClosed = reservation.flag != ReservationFlag::Active;
-    if (isClosed != reservation.closedAt.isValid()) {
-        error = QStringLiteral("预约记录的关闭时间与状态不一致。");
-        return false;
-    }
-    if (reservation.closedAt.isValid()
-        && (reservation.closedAt < reservation.startTime
-            || reservation.closedAt >= reservation.endTime)) {
-        error = QStringLiteral("预约记录中的关闭时间无效。");
         return false;
     }
 
@@ -164,11 +127,6 @@ bool parseViolation(const QJsonValue& value, Violation& violation,
     }
 
     violation.revoked = object.value(QStringLiteral("revoked")).toBool();
-    if (!isUuid(violation.id) || !isUuid(violation.reservationId)
-        || !violation.recordedAt.isValid()) {
-        error = QStringLiteral("违约记录包含无效编号或登记时间。");
-        return false;
-    }
     return true;
 }
 
@@ -202,7 +160,8 @@ bool validateData(const AppData& data, QString& error)
         const bool isClosed = reservation.flag != ReservationFlag::Active;
         if (isClosed != reservation.closedAt.isValid()
             || (reservation.closedAt.isValid()
-                && (reservation.closedAt < reservation.startTime
+                && ((reservation.flag == ReservationFlag::Terminated
+                    && reservation.closedAt < reservation.startTime)
                     || reservation.closedAt >= reservation.endTime))) {
             error = QStringLiteral("预约的状态与关闭时间不一致。");
             return false;
@@ -363,4 +322,98 @@ OperationResult JsonStore::commit(const AppData& updatedData)
     m_data = updatedData;
     emit dataChanged();
     return success(QStringLiteral("数据保存成功。"));
+}
+
+StatisticsManager::StatisticsManager(const JsonStore& store)
+    : m_store(store)
+{
+}
+
+OperationResult StatisticsManager::summarize(
+    const User& admin, const QDate& from, const QDate& to,
+    StatisticsSummary& summary) const
+{
+    summary = {};
+
+    if (admin.role != UserRole::Admin || admin.account.trimmed().isEmpty())
+        return failure(QStringLiteral("仅管理员可以查看统计数据。"));
+    if (!from.isValid() || !to.isValid() || from > to)
+        return failure(QStringLiteral("统计日期范围无效。"));
+
+    const AppData& data = m_store.data();
+    for (const Reservation& reservation : data.reservations) {
+        if (!reservation.startTime.isValid())
+            continue;
+        const QDate reservationDate = reservation.startTime.date();
+        if (reservationDate < from || reservationDate > to)
+            continue;
+
+        ++summary.reservationCount;
+        if (reservation.flag == ReservationFlag::Cancelled)
+            ++summary.cancelledCount;
+        if (reservation.checkedInAt.isValid())
+            ++summary.checkedInCount;
+    }
+
+    for (const Violation& violation : data.violations) {
+        if (violation.revoked)
+            continue;
+
+        for (const Reservation& reservation : data.reservations) {
+            if (reservation.id != violation.reservationId
+                || !reservation.startTime.isValid())
+                continue;
+
+            const QDate reservationDate = reservation.startTime.date();
+            if (reservationDate >= from && reservationDate <= to)
+                ++summary.activeViolationCount;
+            break;
+        }
+    }
+
+    return success(QStringLiteral("统计完成。"));
+}
+
+StatisticsPage::StatisticsPage(StatisticsManager &manager, const User &user, QWidget *parent)
+    : QWidget(parent), manager(manager), user(user)
+{
+    auto *root = new QVBoxLayout(this);
+    auto *controls = new QHBoxLayout;
+    from = new QDateEdit(QDate::currentDate());
+    to = new QDateEdit(QDate::currentDate());
+    for (QDateEdit *edit : {from, to}) {
+        edit->setCalendarPopup(true);
+        edit->setDisplayFormat(QStringLiteral("yyyy-MM-dd"));
+    }
+    controls->addWidget(new QLabel(QStringLiteral("预约日期")));
+    controls->addWidget(from);
+    controls->addWidget(new QLabel(QStringLiteral("至")));
+    controls->addWidget(to);
+    auto *query = new QPushButton(QStringLiteral("查询统计"));
+    controls->addWidget(query);
+    controls->addStretch();
+    root->addLayout(controls);
+    message = new QLabel;
+    root->addWidget(message);
+    auto *form = new QFormLayout;
+    const QStringList names = {QStringLiteral("预约总数"), QStringLiteral("取消数"),
+        QStringLiteral("签到数"), QStringLiteral("有效违约数")};
+    for (int i = 0; i < 4; ++i) {
+        counts[i] = new QLabel;
+        form->addRow(names[i], counts[i]);
+    }
+    root->addLayout(form);
+    root->addStretch();
+    connect(query, &QPushButton::clicked, this, &StatisticsPage::refreshStatistics);
+}
+
+void StatisticsPage::refreshStatistics()
+{
+    StatisticsSummary summary;
+    const OperationResult result = manager.summarize(user, from->date(), to->date(), summary);
+    message->setText(result.ok ? QString() : result.message);
+    const int values[] = {summary.reservationCount, summary.cancelledCount,
+                          summary.checkedInCount, summary.activeViolationCount};
+    for (int i = 0; i < 4; ++i)
+        counts[i]->setText(QString::number(values[i]));
 }

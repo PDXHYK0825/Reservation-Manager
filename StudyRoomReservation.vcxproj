@@ -9,6 +9,7 @@
     <Keyword>QtVS_v304</Keyword>
     <RootNamespace>StudyRoomReservation</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <PreferredToolArchitecture>x64</PreferredToolArchitecture>
     <QtMsBuild Condition="'$(QtMsBuild)' == ''">$(LOCALAPPDATA)\QtMsBuild</QtMsBuild>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -48,38 +49,15 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="main.cpp" />
-    <ClCompile Include="common\DemoData.cpp" />
-    <ClCompile Include="common\Rules.cpp" />
-    <ClCompile Include="storage\JsonStore.cpp" />
-    <ClCompile Include="managers\SeatManager.cpp" />
+    <ClCompile Include="ui\MainWindow.cpp" />
     <ClCompile Include="managers\ReservationManager.cpp" />
     <ClCompile Include="managers\AttendanceViolationManager.cpp" />
-    <ClCompile Include="managers\StatisticsManager.cpp" />
-    <ClCompile Include="ui\LoginDialog.cpp" />
-    <ClCompile Include="ui\MainWindow.cpp" />
-    <ClCompile Include="ui\SeatPage.cpp" />
-
+    <ClCompile Include="storage\JsonStore.cpp" />
     <ClInclude Include="common\Models.h" />
-    <ClInclude Include="common\DemoData.h" />
-    <ClInclude Include="common\Rules.h" />
-    <ClInclude Include="managers\SeatManager.h" />
+    <QtMoc Include="ui\MainWindow.h" />
     <ClInclude Include="managers\ReservationManager.h" />
     <ClInclude Include="managers\AttendanceViolationManager.h" />
-    <ClInclude Include="managers\StatisticsManager.h" />
-    <ClInclude Include="ui\ReservationPage.h" />
-    <ClInclude Include="ui\AttendanceViolationPage.h" />
-    <ClInclude Include="ui\StatisticsPage.h" />
     <QtMoc Include="storage\JsonStore.h" />
-    <QtMoc Include="ui\LoginDialog.h" />
-    <QtMoc Include="ui\MainWindow.h" />
-    <QtMoc Include="ui\SeatPage.h" />
-    <QtUic Include="ui\LoginDialog.ui" />
-    <QtUic Include="ui\MainWindow.ui" />
-    <QtUic Include="ui\SeatPage.ui" />
-    <None Include="ui\ReservationPage.ui" />
-    <None Include="ui\AttendanceViolationPage.ui" />
-    <None Include="ui\StatisticsPage.ui" />
     <None Include="README.md" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

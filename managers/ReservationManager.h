@@ -1,8 +1,16 @@
 #pragma once
 
-#include "../common/Models.h"
+// 成员 B：时间规则与预约管理。
+#include "common/Models.h"
+#include <QtWidgets>
 
 class JsonStore;
+
+QDateTime toMinute(const QDateTime &value);
+bool isHalfHourAligned(const QDateTime &value);
+bool overlaps(const QDateTime &startA, const QDateTime &endA,
+              const QDateTime &startB, const QDateTime &endB);
+ReservationViewState stateOf(const Reservation &reservation, const QDateTime &now);
 
 class ReservationManager {
 public:
@@ -19,4 +27,28 @@ public:
 
 private:
     JsonStore& m_store;
+};
+
+QString displayTime(const QDateTime &value);
+QString reservationStateText(const Reservation &reservation, const QDateTime &now);
+
+class ReservationPage : public QWidget
+{
+public:
+    ReservationPage(ReservationManager &manager, const User &user, QWidget *parent = nullptr,
+                    bool historyOnly = false);
+    void refresh();
+    void setSelection(int seatId, const QDateTime &start, const QDateTime &end);
+    QWidget *bookingControls() const { return controlsPanel; }
+private:
+    ReservationManager &manager;
+    User user;
+    QTableWidget *table;
+    QLabel *message;
+    QWidget *controlsPanel;
+    QPushButton *create = nullptr;
+    QDateEdit *from = nullptr, *to = nullptr;
+    QComboBox *account = nullptr;
+    int seatId = -1;
+    QDateTime start, end;
 };

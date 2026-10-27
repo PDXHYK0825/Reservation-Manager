@@ -1,47 +1,71 @@
 # 校园自习室预约管理系统
 
-当前交付为**成员 A 模块**。已实现登录、主窗口、20 个座位的查询网格、角色切换、公共演示常量和 VS 工程配置。界面使用 Qt 原生控件及布局。
+四人模块已整合为完整的单机 Qt Widgets 程序。只在同一成员内部合并文件，各人的实现保持独立，文件以主要代码内容命名。
 
-## 环境
+## 四人分工与源码
 
-- C++17、Visual Studio 2022、MSVC v143、x64。
-- 本机核实的 Qt 版本：**Qt 6.11.2 / MSVC2022 64bit**。
-- 本机 Qt 目录：`E:\Qt\QT6.11\6.11.2\msvc2022_64`。
-- Qt VS Tools / Qt MSBuild：3.5.0。
-- Debug、Release 分开输出到 `bin/x64/Debug`、`bin/x64/Release`。
-- 工程启用 `/utf-8`，包含目录使用 `$(ProjectDir)` 等相对宏，无额外数据库或图表依赖。
+| 成员 | 文件 | 实现与职责 |
+| --- | --- | --- |
+| A | `ui/MainWindow.h/.cpp` | 固定账号与20个座位、SeatManager、登录、4×5座位网格、主窗口、页面连接、30秒刷新、退出登录及程序入口 |
+| B | `managers/ReservationManager.h/.cpp` | 公共时间及状态规则、ReservationManager、预约及取消、本人历史记录、管理员日期及账号查询 |
+| C | `managers/AttendanceViolationManager.h/.cpp` | AttendanceViolationManager、本人签到、违约登记与查询、撤销违约；整合时接入对应界面 |
+| D | `storage/JsonStore.h/.cpp` | JsonStore、StatisticsManager、JSON加载及原子保存、日期筛选与四项统计界面 |
+| 共用 | `common/Models.h` | 四人共同使用的数据结构和枚举 |
 
-其他电脑需安装相同 Qt 版本，并在 VS 的 Qt Project Settings 中选择对应的 Qt Installation；工程使用名称 `6.11.2_msvc2022_64`。本机命令行构建通过 `QtInstallDir` 显式传入路径，不修改系统或其他成员的配置。
+每组文件对应一人的职责，保留原业务类及公开方法。所有业务类使用同一个 JsonStore，成功保存后统一刷新。完整系统保留9个 `.h/.cpp` 文件。原分散文件、空页面、Designer界面及仅用于A模块的预览测试已被替代。
 
-## 当前可运行内容
+源码保留9个文件，各成员的职责分别呈现。`docs` 保留分工阶段的原始交接记录，作为协作过程留档；最终文件位置和接入状态以本说明为准。
 
-`tests/MemberATests.vcxproj` 是 A 的独立 Qt 验收工程。它链接 `tests/MemberATestSupport.cpp` 中的内存数据与规则替身，**不读写业务 JSON**。测试使用真实 Qt 类型、控件、信号和 A 的正式源码。
+目录沿用 GitHub 的 `common`、`managers`、`storage`、`ui` 框架，`docs` 保存协作记录；已被整合代码替代的旧文件和空 `tests` 目录已清理。
 
-在 **VS2022 Developer PowerShell** 中进入项目目录，执行：
+## 运行
+
+打开 `bin/x64/Release/StudyRoomReservation.exe`。发布目录内的 Qt DLL、`platforms` 等子目录必须与 EXE 一起保留。
+
+| 账号 | 密码 | 身份 |
+| --- | --- | --- |
+| admin | 123456 | 管理员 |
+| student01 | 123456 | 学生一 |
+| student02 | 123456 | 学生二 |
+
+学生端只有两个页面：
+
+- “座位预约”：上方选择当天起止时间和座位，座位显示编号、当前状态及所选时段占用情况；座位下方提交预约、取消预约及签到，最下方显示本人预约记录。
+- “预约记录”：上方展示本人预约及签到时间，下方展示本人违约记录，包括已撤销记录。
+
+管理员：在“预约与签到查询”按日期及账号查询 → 在“违约管理”选择已经开始的预约登记违约，或选中违约记录撤销 → 在“统计”查询四项数字。
+
+点击“退出登录”切换账号，当前进程继续使用同一份数据。
+
+## 业务规则
+
+- 当天08:00—23:00，半小时对齐，至少30分钟；拒绝过去时段、座位冲突及同学生时间冲突，首尾相接允许。
+- 学生只操作及查询本人记录；管理员查询全部记录，管理违约及统计。
+- 开始前及使用中均可取消；签到限于 `[开始, 结束)`，操作时间记录到分钟，禁止重复签到。
+- 违约不记录类型、原因或备注；登记违约时终止仍有效的预约，撤销后保留记录且不恢复预约。
+- 四项统计为预约总数、取消数、签到数、有效违约数，按预约使用日期归属，包含起止日期。
+- 当前座位状态和所选时段的可预约情况分开显示；自然结束不自动登记违约。
+- 数据为 EXE 同目录的 `study_room_data.json`，沿用原字段和时间格式。首次无文件时使用空数据，JSON损坏时停止进入业务界面且不覆盖原文件。
+- 写操作使用数据副本和 QSaveFile，保存成功后才更新内存和界面；失败保留原数据。
+
+## 编译
+
+C++17、Visual Studio 2022、MSVC v143、x64、Qt 6.11.2 MSVC2022 64位、Qt VS Tools / Qt MSBuild。
+
+打开 `StudyRoomReservation.sln`，选择 `Release | x64` 并生成。其他电脑需在 Qt Project Settings 选择对应的 Qt 安装。
+
+本机在 VS2022 Developer PowerShell 中执行：
 
 ```powershell
-msbuild .\tests\MemberATests.vcxproj /p:Configuration=Debug /p:Platform=x64 /p:QtInstallDir=E:\Qt\QT6.11\6.11.2\msvc2022_64
-.\bin\x64\Debug\MemberATests.exe
+msbuild .\StudyRoomReservation.sln /p:Configuration=Release /p:Platform=x64 /p:QtInstallDir=E:\Qt\QT6.11\6.11.2\msvc2022_64
 ```
 
-仅预览 A 的登录与座位界面，使用同一个测试工程的预览配置：
+工程使用 `$(ProjectDir)` 等相对路径，生成后部署 Qt 运行库。`bin`、`obj`、个人VS配置和业务JSON不加入源码版本管理。
 
-```powershell
-msbuild .\tests\MemberATests.vcxproj /p:MemberAPreview=true /p:Configuration=Release /p:Platform=x64 /p:QtInstallDir=E:\Qt\QT6.11\6.11.2\msvc2022_64
-.\bin\x64\Release\MemberAPreview.exe
-```
+## 整合验收
 
-预览使用正式 `main.cpp` 和测试替身，初始没有预约；退出进程后测试数据丢弃。它用于查看 A 的界面，不是已集成的完整系统。
+真实 Qt 和正式业务实现上的100项业务及窗口检查全部通过，覆盖学生端两页布局、同页预约与签到、记录同步、登录、时间边界、两类冲突、权限、开始前取消、签到、违约终止与撤销、统计、排序后按编号操作、JSON重载、损坏文件及保存失败。
 
-三个演示账号分别为 `admin`、`student01`、`student02`，密码均为 `123456`；角色直接取自固定用户对象，不提供角色选择框。
+修正了原存储校验误拒绝“预约开始前取消”的问题。临时验收程序放在生成目录，不作为成品功能或独立项目交付。
 
-## 完整系统接入状态
-
-`StudyRoomReservation.sln` / `StudyRoomReservation.vcxproj` 是正式系统工程。当前 B 的 `common/Rules.cpp` 和 D 的 `storage/JsonStore.cpp` 仍为空，完整系统尚不能链接运行。可先在解决方案中**单独生成 MemberATests 项目**；直接生成整个解决方案会遇到这些缺失实现。
-
-- `common/Models.h` 按计划原文补入唯一模型定义，后续由 D 维护。
-- `common/Rules.h`、`storage/JsonStore.h` 按计划补入接口声明，没有正式实现，没有另建业务保存通道。
-- B、C、D 的功能页面仍为空，由各成员提供后接入；现有 C 的业务源码保持原样。
-- 主窗口的 `addPage()`、`refreshRequested()`、`seatSelectionChanged()` 提供页面接入位置，详细说明见 [A 模块交接](docs/成员A交付说明.md)。
-
-生成目录、个人 VS 配置、业务 JSON 不作为源码交接内容。当前未创建 Git 提交。
+Release和Debug构建均通过；正式入口已验证管理员、学生一、学生二连续退出登录、重新登录及退出程序。

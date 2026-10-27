@@ -1,9 +1,7 @@
-#include "AttendanceViolationManager.h"
-
-#include "../common/Rules.h"
-#include "../storage/JsonStore.h"
-
-#include <QUuid>
+// 成员 C：签到与违约管理。
+#include "managers/AttendanceViolationManager.h"
+#include "managers/ReservationManager.h"
+#include "storage/JsonStore.h"
 
 AttendanceViolationManager::AttendanceViolationManager(JsonStore &store) :
     dataStore(store)
@@ -27,60 +25,49 @@ int AttendanceViolationManager::findReservation(
 OperationResult AttendanceViolationManager::checkIn(
     const User &user, const QString &reservationId, const QDateTime &now)
 {
-    OperationResult result;
-    result.ok = false;
-
     if (user.role != UserRole::Student || user.account.isEmpty())
     {
-        result.message = QStringLiteral("仅学生可以签到");
-        return result;
+        return {false, QStringLiteral("仅学生可以签到")};
     }
 
     QDateTime currentTime = toMinute(now);
     if (!currentTime.isValid())
     {
-        result.message = QStringLiteral("操作时间无效");
-        return result;
+        return {false, QStringLiteral("操作时间无效")};
     }
 
     AppData data = dataStore.data();
     int index = findReservation(data, reservationId);
     if (index == -1)
     {
-        result.message = QStringLiteral("预约不存在");
-        return result;
+        return {false, QStringLiteral("预约不存在")};
     }
 
     Reservation &reservation = data.reservations[index];
     if (reservation.studentAccount != user.account)
     {
-        result.message = QStringLiteral("只能对本人的预约签到");
-        return result;
+        return {false, QStringLiteral("只能对本人的预约签到")};
     }
     if (reservation.flag != ReservationFlag::Active)
     {
-        result.message = QStringLiteral("已取消或已终止的预约不能签到");
-        return result;
+        return {false, QStringLiteral("已取消或已终止的预约不能签到")};
     }
     if (!reservation.startTime.isValid() || !reservation.endTime.isValid()
         || reservation.startTime >= reservation.endTime)
     {
-        result.message = QStringLiteral("预约时间无效");
-        return result;
+        return {false, QStringLiteral("预约时间无效")};
     }
     if (currentTime < reservation.startTime || currentTime >= reservation.endTime)
     {
-        result.message = QStringLiteral("请在预约时段内签到");
-        return result;
+        return {false, QStringLiteral("请在预约时段内签到")};
     }
     if (reservation.checkedInAt.isValid())
     {
-        result.message = QStringLiteral("该预约已签到");
-        return result;
+        return {false, QStringLiteral("该预约已签到")};
     }
 
     reservation.checkedInAt = currentTime;
-    result = dataStore.commit(data);
+    OperationResult result = dataStore.commit(data);
     if (result.ok)
     {
         result.message = QStringLiteral("签到成功");
@@ -91,41 +78,33 @@ OperationResult AttendanceViolationManager::checkIn(
 OperationResult AttendanceViolationManager::addViolation(
     const User &admin, const QString &reservationId, const QDateTime &now)
 {
-    OperationResult result;
-    result.ok = false;
-
     if (admin.role != UserRole::Admin || admin.account.isEmpty())
     {
-        result.message = QStringLiteral("仅管理员可以登记违约");
-        return result;
+        return {false, QStringLiteral("仅管理员可以登记违约")};
     }
 
     QDateTime currentTime = toMinute(now);
     if (!currentTime.isValid())
     {
-        result.message = QStringLiteral("操作时间无效");
-        return result;
+        return {false, QStringLiteral("操作时间无效")};
     }
 
     AppData data = dataStore.data();
     int index = findReservation(data, reservationId);
     if (index == -1)
     {
-        result.message = QStringLiteral("预约不存在");
-        return result;
+        return {false, QStringLiteral("预约不存在")};
     }
 
     Reservation &reservation = data.reservations[index];
     if (!reservation.startTime.isValid() || !reservation.endTime.isValid()
         || reservation.startTime >= reservation.endTime)
     {
-        result.message = QStringLiteral("预约时间无效");
-        return result;
+        return {false, QStringLiteral("预约时间无效")};
     }
     if (currentTime < reservation.startTime)
     {
-        result.message = QStringLiteral("预约开始后才能登记违约");
-        return result;
+        return {false, QStringLiteral("预约开始后才能登记违约")};
     }
 
     for (int i = 0; i < data.violations.size(); i++)
@@ -133,8 +112,7 @@ OperationResult AttendanceViolationManager::addViolation(
         if (data.violations[i].reservationId == reservationId
             && !data.violations[i].revoked)
         {
-            result.message = QStringLiteral("该预约已有未撤销的违约记录");
-            return result;
+            return {false, QStringLiteral("该预约已有未撤销的违约记录")};
         }
     }
 
@@ -153,7 +131,7 @@ OperationResult AttendanceViolationManager::addViolation(
         reservation.closedAt = currentTime;
     }
 
-    result = dataStore.commit(data);
+    OperationResult result = dataStore.commit(data);
     if (result.ok)
     {
         result.message = QStringLiteral("违约登记成功");
@@ -164,13 +142,9 @@ OperationResult AttendanceViolationManager::addViolation(
 OperationResult AttendanceViolationManager::revokeViolation(
     const User &admin, const QString &violationId)
 {
-    OperationResult result;
-    result.ok = false;
-
     if (admin.role != UserRole::Admin || admin.account.isEmpty())
     {
-        result.message = QStringLiteral("仅管理员可以撤销违约");
-        return result;
+        return {false, QStringLiteral("仅管理员可以撤销违约")};
     }
 
     AppData data = dataStore.data();
@@ -181,13 +155,12 @@ OperationResult AttendanceViolationManager::revokeViolation(
         {
             if (violation.revoked)
             {
-                result.message = QStringLiteral("该违约记录已撤销");
-                return result;
+                return {false, QStringLiteral("该违约记录已撤销")};
             }
 
             // 保留记录，不恢复原预约。
             violation.revoked = true;
-            result = dataStore.commit(data);
+            OperationResult result = dataStore.commit(data);
             if (result.ok)
             {
                 result.message = QStringLiteral("违约已撤销");
@@ -196,8 +169,7 @@ OperationResult AttendanceViolationManager::revokeViolation(
         }
     }
 
-    result.message = QStringLiteral("违约记录不存在");
-    return result;
+    return {false, QStringLiteral("违约记录不存在")};
 }
 
 QVector<Violation> AttendanceViolationManager::listViolations(
@@ -234,4 +206,96 @@ QVector<Violation> AttendanceViolationManager::listViolations(
         }
     }
     return records;
+}
+
+AttendanceViolationPage::AttendanceViolationPage(AttendanceViolationManager &manager,
+    const JsonStore &store, const User &user, QWidget *parent)
+    : QWidget(parent), manager(manager), store(store), user(user)
+{
+    auto *root = new QVBoxLayout(this);
+    controlsPanel = new QWidget;
+    auto *panelLayout = new QVBoxLayout(controlsPanel);
+    panelLayout->setContentsMargins(0, 0, 0, 0);
+    auto *controls = new QHBoxLayout;
+    controls->addWidget(new QLabel(QStringLiteral("选择预约")));
+    reservations = new QComboBox;
+    reservations->setMinimumContentsLength(45);
+    controls->addWidget(reservations, 1);
+    const bool admin = user.role == UserRole::Admin;
+    auto *action = new QPushButton(admin ? QStringLiteral("登记违约") : QStringLiteral("签到"));
+    controls->addWidget(action);
+    panelLayout->addLayout(controls);
+    message = new QLabel;
+    message->setWordWrap(true);
+    panelLayout->addWidget(message);
+    root->addWidget(controlsPanel);
+    connect(action, &QPushButton::clicked, this, [this, admin] {
+        const QString id = reservations->currentData().toString();
+        if (id.isEmpty()) { message->setText(QStringLiteral("请先选择一条预约。")); return; }
+        const QDateTime now = QDateTime::currentDateTime();
+        const OperationResult result = admin ? this->manager.addViolation(this->user, id, now)
+                                            : this->manager.checkIn(this->user, id, now);
+        message->setText(result.message);
+    });
+    if (admin) {
+        auto *revoke = new QPushButton(QStringLiteral("撤销所选违约"));
+        root->addWidget(revoke, 0, Qt::AlignLeft);
+        connect(revoke, &QPushButton::clicked, this, [this] {
+            const int row = violations->currentRow();
+            if (row < 0) { message->setText(QStringLiteral("请先选择一条违约记录。")); return; }
+            message->setText(this->manager.revokeViolation(this->user,
+                violations->item(row, 0)->data(Qt::UserRole).toString()).message);
+        });
+    }
+    violations = new QTableWidget(0, 5);
+    violations->setHorizontalHeaderLabels({QStringLiteral("学生账号"), QStringLiteral("座位"),
+        QStringLiteral("预约开始时间"), QStringLiteral("登记时间"), QStringLiteral("状态")});
+    violations->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    violations->setSelectionBehavior(QAbstractItemView::SelectRows);
+    violations->setSelectionMode(QAbstractItemView::SingleSelection);
+    violations->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+    root->addWidget(violations);
+}
+
+void AttendanceViolationPage::refresh()
+{
+    const QString reservationId = reservations->currentData().toString();
+    reservations->clear();
+    const QDateTime now = QDateTime::currentDateTime();
+    for (const Reservation &r : store.data().reservations) {
+        if (user.role != UserRole::Admin && r.studentAccount != user.account)
+            continue;
+        reservations->addItem(QStringLiteral("%1　%2号　%3—%4　%5")
+            .arg(r.studentAccount).arg(r.seatId, 2, 10, QLatin1Char('0'))
+            .arg(displayTime(r.startTime), r.endTime.time().toString(QStringLiteral("HH:mm")),
+                 reservationStateText(r, now)), r.id);
+    }
+    const int index = reservations->findData(reservationId);
+    if (index >= 0)
+        reservations->setCurrentIndex(index);
+    QString selected;
+    if (violations->currentRow() >= 0)
+        selected = violations->item(violations->currentRow(), 0)->data(Qt::UserRole).toString();
+    violations->setSortingEnabled(false);
+    violations->setRowCount(0);
+    for (const Violation &v : manager.listViolations(user))
+        for (const Reservation &r : store.data().reservations)
+            if (r.id == v.reservationId) {
+                const int row = violations->rowCount();
+                violations->insertRow(row);
+                const QStringList values = {r.studentAccount, QStringLiteral("%1号").arg(r.seatId, 2, 10, QLatin1Char('0')),
+                    displayTime(r.startTime), displayTime(v.recordedAt), v.revoked ? QStringLiteral("已撤销") : QStringLiteral("有效违约")};
+                for (int column = 0; column < values.size(); ++column) {
+                    auto *item = new QTableWidgetItem(values[column]);
+                    item->setData(Qt::UserRole, v.id);
+                    violations->setItem(row, column, item);
+                }
+                break;
+            }
+    violations->setSortingEnabled(true);
+    for (int row = 0; row < violations->rowCount(); ++row)
+        if (violations->item(row, 0)->data(Qt::UserRole).toString() == selected) {
+            violations->selectRow(row);
+            break;
+        }
 }

@@ -1,7 +1,8 @@
-#ifndef ATTENDANCEVIOLATIONMANAGER_H
-#define ATTENDANCEVIOLATIONMANAGER_H
+#pragma once
 
-#include "../common/Models.h"
+// 成员 C：签到与违约管理。
+#include "common/Models.h"
+#include <QtWidgets>
 
 class JsonStore;
 
@@ -29,4 +30,19 @@ private:
     int findReservation(const AppData &data, const QString &reservationId) const;
 };
 
-#endif // ATTENDANCEVIOLATIONMANAGER_H
+class AttendanceViolationPage : public QWidget
+{
+public:
+    AttendanceViolationPage(AttendanceViolationManager &manager, const JsonStore &store,
+                            const User &user, QWidget *parent = nullptr);
+    void refresh();
+    QWidget *checkInControls() const { return controlsPanel; }
+private:
+    AttendanceViolationManager &manager;
+    const JsonStore &store;
+    User user;
+    QComboBox *reservations;
+    QTableWidget *violations;
+    QLabel *message;
+    QWidget *controlsPanel;
+};
