@@ -18,7 +18,7 @@ signals:
     void dataChanged();
 
 private:
-    AppData storedData;
+    AppData m_data;
 };
 
 #endif // JSONSTORE_H

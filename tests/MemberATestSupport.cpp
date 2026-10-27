@@ -96,12 +96,12 @@ OperationResult JsonStore::load()
 
 const AppData &JsonStore::data() const
 {
-    return storedData;
+    return m_data;
 }
 
 OperationResult JsonStore::commit(const AppData &updatedData)
 {
-    storedData = updatedData;
+    m_data = updatedData;
     emit dataChanged();
     return {true, {}};
 }
