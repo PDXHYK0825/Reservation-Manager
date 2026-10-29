@@ -30,20 +30,23 @@ private:
 };
 
 QString displayTime(const QDateTime &value);
-QString reservationStateText(const Reservation &reservation, const QDateTime &now);
+QString reservationStateText(const Reservation &reservation, const QDateTime &now,
+                             const QVector<Violation> &violations = {});
 
 class ReservationPage : public QWidget
 {
 public:
-    ReservationPage(ReservationManager &manager, const User &user, QWidget *parent = nullptr,
+    ReservationPage(ReservationManager &manager, const JsonStore &store,
+                    const User &user, QWidget *parent = nullptr,
                     bool historyOnly = false);
     void refresh();
     void setSelection(int seatId, const QDateTime &start, const QDateTime &end);
     QWidget *bookingControls() const { return controlsPanel; }
 private:
     ReservationManager &manager;
+    const JsonStore &store;
     User user;
-    QTableWidget *table;
+    QTableWidget *table = nullptr;
     QLabel *message;
     QWidget *controlsPanel;
     QPushButton *create = nullptr;

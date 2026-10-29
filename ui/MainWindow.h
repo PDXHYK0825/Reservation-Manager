@@ -8,9 +8,9 @@ class JsonStore;
 
 namespace DemoData
 {
-constexpr int seatCount = 20;
-constexpr int seatRows = 4;
-constexpr int seatColumns = 5;
+constexpr int seatRows = 3;
+constexpr int seatColumns = 4;
+constexpr int seatCount = seatRows * seatColumns;
 constexpr int reservationMinutes = 30;
 
 QVector<User> users();

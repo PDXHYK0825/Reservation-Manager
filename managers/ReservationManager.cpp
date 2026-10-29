@@ -191,16 +191,27 @@ QString displayTime(const QDateTime &value)
     return value.isValid() ? value.toString(QStringLiteral("yyyy-MM-dd HH:mm")) : QStringLiteral("—");
 }
 
-QString reservationStateText(const Reservation &reservation, const QDateTime &now)
+QString reservationStateText(const Reservation &reservation, const QDateTime &now,
+                             const QVector<Violation> &violations)
 {
+    bool revoked = false;
+    for (const Violation &violation : violations) {
+        if (violation.reservationId != reservation.id)
+            continue;
+        if (!violation.revoked)
+            return QStringLiteral("违约");
+        revoked = true;
+    }
     const QStringList names = {QStringLiteral("待开始"), QStringLiteral("待签到"), QStringLiteral("使用中"),
-        QStringLiteral("已结束"), QStringLiteral("已取消"), QStringLiteral("违约终止")};
-    return names[int(stateOf(reservation, now))];
+        QStringLiteral("已结束"), QStringLiteral("已取消"), QStringLiteral("已终止")};
+    const QString state = names[int(stateOf(reservation, now))];
+    return revoked ? state + QStringLiteral("（违约已撤销）") : state;
 }
 
-ReservationPage::ReservationPage(ReservationManager &manager, const User &user, QWidget *parent,
+ReservationPage::ReservationPage(ReservationManager &manager, const JsonStore &store,
+                               const User &user, QWidget *parent,
                                bool historyOnly)
-    : QWidget(parent), manager(manager), user(user)
+    : QWidget(parent), manager(manager), store(store), user(user)
 {
     auto *root = new QVBoxLayout(this);
     controlsPanel = new QWidget;
@@ -209,20 +220,25 @@ ReservationPage::ReservationPage(ReservationManager &manager, const User &user, 
     auto *controls = new QHBoxLayout;
     if (user.role == UserRole::Student && !historyOnly) {
         create = new QPushButton(QStringLiteral("预约所选座位"));
+        create->setMinimumSize(200, 56);
+        QFont font = create->font();
+        font.setPointSize(14);
+        create->setFont(font);
         controls->addWidget(create);
-        auto *cancel = new QPushButton(QStringLiteral("取消所选预约"));
-        controls->addWidget(cancel);
         connect(create, &QPushButton::clicked, this, [this] {
             message->setText(this->manager.createReservation(this->user, seatId, start, end,
                 QDateTime::currentDateTime()).message);
         });
+        setSelection(-1, {}, {});
+    } else if (user.role == UserRole::Student && historyOnly) {
+        auto *cancel = new QPushButton(QStringLiteral("取消所选预约"));
+        controls->addWidget(cancel);
         connect(cancel, &QPushButton::clicked, this, [this] {
             const int row = table->currentRow();
             if (row < 0) { message->setText(QStringLiteral("请先选择一条预约。")); return; }
             message->setText(this->manager.cancelReservation(this->user,
                 table->item(row, 0)->data(Qt::UserRole).toString(), QDateTime::currentDateTime()).message);
         });
-        setSelection(-1, {}, {});
     } else if (user.role == UserRole::Admin) {
         from = new QDateEdit(QDate::currentDate());
         to = new QDateEdit(QDate::currentDate());
@@ -249,7 +265,8 @@ ReservationPage::ReservationPage(ReservationManager &manager, const User &user, 
     message = new QLabel;
     panelLayout->addWidget(message);
     root->addWidget(controlsPanel);
-    controlsPanel->setVisible(!historyOnly);
+    if (user.role == UserRole::Student && !historyOnly)
+        return;
     table = new QTableWidget(0, 6);
     table->setHorizontalHeaderLabels({QStringLiteral("学生账号"), QStringLiteral("座位"),
         QStringLiteral("开始时间"), QStringLiteral("结束时间"), QStringLiteral("状态"), QStringLiteral("签到时间")});
@@ -269,6 +286,8 @@ void ReservationPage::setSelection(int id, const QDateTime &begin, const QDateTi
 
 void ReservationPage::refresh()
 {
+    if (!table)
+        return;
     QString selected;
     if (table->currentRow() >= 0)
         selected = table->item(table->currentRow(), 0)->data(Qt::UserRole).toString();
@@ -287,7 +306,8 @@ void ReservationPage::refresh()
         const int row = table->rowCount();
         table->insertRow(row);
         const QStringList values = {r.studentAccount, QStringLiteral("%1号").arg(r.seatId, 2, 10, QLatin1Char('0')),
-            displayTime(r.startTime), displayTime(r.endTime), reservationStateText(r, now), displayTime(r.checkedInAt)};
+            displayTime(r.startTime), displayTime(r.endTime),
+            reservationStateText(r, now, store.data().violations), displayTime(r.checkedInAt)};
         for (int column = 0; column < values.size(); ++column) {
             auto *item = new QTableWidgetItem(values[column]);
             item->setData(Qt::UserRole, r.id);

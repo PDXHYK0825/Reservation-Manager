@@ -23,6 +23,50 @@ int AttendanceViolationManager::findReservation(
 }
 
 OperationResult AttendanceViolationManager::checkIn(
+    const User &user, const QDateTime &now)
+{
+    if (user.role != UserRole::Student || user.account.isEmpty())
+    {
+        return {false, QStringLiteral("仅学生可以签到")};
+    }
+
+    QDateTime currentTime = toMinute(now);
+    if (!currentTime.isValid())
+    {
+        return {false, QStringLiteral("操作时间无效")};
+    }
+
+    const AppData &data = dataStore.data();
+    bool hasReservation = false;
+    QString reservationId;
+    for (int i = 0; i < data.reservations.size(); i++)
+    {
+        const Reservation &reservation = data.reservations[i];
+        if (reservation.studentAccount != user.account
+            || reservation.flag != ReservationFlag::Active)
+        {
+            continue;
+        }
+
+        hasReservation = true;
+        if (reservation.startTime.isValid() && reservation.endTime.isValid()
+            && currentTime >= reservation.startTime && currentTime < reservation.endTime)
+        {
+            reservationId = reservation.id;
+            break;
+        }
+    }
+
+    if (reservationId.isEmpty())
+    {
+        return {false, hasReservation ? QStringLiteral("当前时间不在预约时段内")
+                                     : QStringLiteral("你还没有有效预约，请先预约座位")};
+    }
+
+    return checkIn(user, reservationId, currentTime);
+}
+
+OperationResult AttendanceViolationManager::checkIn(
     const User &user, const QString &reservationId, const QDateTime &now)
 {
     if (user.role != UserRole::Student || user.account.isEmpty())
@@ -172,6 +216,57 @@ OperationResult AttendanceViolationManager::revokeViolation(
     return {false, QStringLiteral("违约记录不存在")};
 }
 
+OperationResult AttendanceViolationManager::recordExpiredReservations(const QDateTime &now)
+{
+    QDateTime currentTime = toMinute(now);
+    if (!currentTime.isValid())
+    {
+        return {false, QStringLiteral("操作时间无效")};
+    }
+
+    AppData data = dataStore.data();
+    bool changed = false;
+    for (int i = 0; i < data.reservations.size(); i++)
+    {
+        const Reservation &reservation = data.reservations[i];
+        if (reservation.flag != ReservationFlag::Active
+            || !reservation.startTime.isValid() || !reservation.endTime.isValid()
+            || reservation.startTime >= reservation.endTime
+            || currentTime < reservation.endTime || reservation.checkedInAt.isValid())
+        {
+            continue;
+        }
+
+        bool recorded = false;
+        for (int j = 0; j < data.violations.size(); j++)
+        {
+            if (data.violations[j].reservationId == reservation.id)
+            {
+                recorded = true;
+                break;
+            }
+        }
+        // 已撤销的违约也保留处理结果，避免下次刷新又自动登记。
+        if (recorded)
+        {
+            continue;
+        }
+
+        Violation violation;
+        violation.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
+        violation.reservationId = reservation.id;
+        violation.recordedAt = currentTime;
+        data.violations.append(violation);
+        changed = true;
+    }
+
+    if (!changed)
+    {
+        return {true, QString()};
+    }
+    return dataStore.commit(data);
+}
+
 QVector<Violation> AttendanceViolationManager::listViolations(
     const User &user) const
 {
@@ -217,26 +312,41 @@ AttendanceViolationPage::AttendanceViolationPage(AttendanceViolationManager &man
     auto *panelLayout = new QVBoxLayout(controlsPanel);
     panelLayout->setContentsMargins(0, 0, 0, 0);
     auto *controls = new QHBoxLayout;
-    controls->addWidget(new QLabel(QStringLiteral("选择预约")));
-    reservations = new QComboBox;
-    reservations->setMinimumContentsLength(45);
-    controls->addWidget(reservations, 1);
     const bool admin = user.role == UserRole::Admin;
+    if (admin) {
+        controls->addWidget(new QLabel(QStringLiteral("选择预约")));
+        reservations = new QComboBox;
+        reservations->setMinimumContentsLength(45);
+        controls->addWidget(reservations, 1);
+    }
     auto *action = new QPushButton(admin ? QStringLiteral("登记违约") : QStringLiteral("签到"));
     controls->addWidget(action);
+    if (!admin) {
+        action->setMinimumSize(200, 56);
+        QFont font = action->font();
+        font.setPointSize(14);
+        action->setFont(font);
+        controls->addStretch();
+    }
     panelLayout->addLayout(controls);
     message = new QLabel;
     message->setWordWrap(true);
     panelLayout->addWidget(message);
     root->addWidget(controlsPanel);
     connect(action, &QPushButton::clicked, this, [this, admin] {
-        const QString id = reservations->currentData().toString();
-        if (id.isEmpty()) { message->setText(QStringLiteral("请先选择一条预约。")); return; }
         const QDateTime now = QDateTime::currentDateTime();
-        const OperationResult result = admin ? this->manager.addViolation(this->user, id, now)
-                                            : this->manager.checkIn(this->user, id, now);
+        OperationResult result;
+        if (admin) {
+            const QString id = reservations->currentData().toString();
+            if (id.isEmpty()) { message->setText(QStringLiteral("请先选择一条预约。")); return; }
+            result = this->manager.addViolation(this->user, id, now);
+        } else {
+            result = this->manager.checkIn(this->user, now);
+        }
         message->setText(result.message);
     });
+    if (!admin)
+        return;
     if (admin) {
         auto *revoke = new QPushButton(QStringLiteral("撤销所选违约"));
         root->addWidget(revoke, 0, Qt::AlignLeft);
@@ -259,6 +369,8 @@ AttendanceViolationPage::AttendanceViolationPage(AttendanceViolationManager &man
 
 void AttendanceViolationPage::refresh()
 {
+    if (!reservations || !violations)
+        return;
     const QString reservationId = reservations->currentData().toString();
     reservations->clear();
     const QDateTime now = QDateTime::currentDateTime();
@@ -268,7 +380,7 @@ void AttendanceViolationPage::refresh()
         reservations->addItem(QStringLiteral("%1　%2号　%3—%4　%5")
             .arg(r.studentAccount).arg(r.seatId, 2, 10, QLatin1Char('0'))
             .arg(displayTime(r.startTime), r.endTime.time().toString(QStringLiteral("HH:mm")),
-                 reservationStateText(r, now)), r.id);
+                 reservationStateText(r, now, store.data().violations)), r.id);
     }
     const int index = reservations->findData(reservationId);
     if (index >= 0)
