@@ -47,12 +47,13 @@ SeatPage::SeatPage(SeatManager &manager, QWidget *parent)
     for (const Seat &seat : manager.listSeats()) {
         auto *button = new QPushButton;
         button->setCheckable(true);
-        button->setMinimumHeight(80);
+        button->setMinimumHeight(96);
+        button->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
         buttons->addButton(button, seat.id);
         grid->addWidget(button, (seat.id - 1) / DemoData::seatColumns,
                         (seat.id - 1) % DemoData::seatColumns);
     }
-    root->addLayout(grid);
+    root->addLayout(grid, 1);
     message = new QLabel;
     message->setWordWrap(true);
     root->addWidget(message);
@@ -155,7 +156,7 @@ public:
         : seats(store), reservations(store), attendance(store), statistics(store)
     {
         setWindowTitle(QStringLiteral("校园自习室预约管理系统"));
-        resize(1060, user.role == UserRole::Admin ? 720 : 900);
+        resize(1060, 720);
         auto *central = new QWidget;
         setCentralWidget(central);
         auto *root = new QVBoxLayout(central);
@@ -171,10 +172,13 @@ public:
         header->addWidget(refreshButton);
         header->addWidget(logoutButton);
         root->addLayout(header);
+        auto *automaticMessage = new QLabel;
+        automaticMessage->setWordWrap(true);
+        root->addWidget(automaticMessage);
         auto *tabs = new QTabWidget;
         root->addWidget(tabs);
         auto *seatPage = new SeatPage(seats);
-        auto *reservationPage = new ReservationPage(reservations, user);
+        auto *reservationPage = new ReservationPage(reservations, store, user);
         auto *attendancePage = new AttendanceViolationPage(attendance, store, user);
         auto *statisticsPage = admin ? new StatisticsPage(statistics, user) : nullptr;
         ReservationPage *historyReservations = nullptr;
@@ -186,25 +190,30 @@ public:
         } else {
             auto *bookingPage = new QWidget;
             auto *bookingLayout = new QVBoxLayout(bookingPage);
-            bookingLayout->addWidget(seatPage);
-            bookingLayout->addWidget(reservationPage->bookingControls());
-            bookingLayout->addWidget(attendancePage->checkInControls());
-            bookingLayout->addWidget(new QLabel(QStringLiteral("预约记录")));
-            bookingLayout->addWidget(reservationPage, 1);
+            bookingLayout->addWidget(seatPage, 1);
+            auto *actions = new QHBoxLayout;
+            actions->addWidget(reservationPage, 1);
+            actions->addWidget(attendancePage, 1);
+            bookingLayout->addLayout(actions);
             tabs->addTab(bookingPage, QStringLiteral("座位预约"));
 
             auto *historyPage = new QWidget;
             auto *historyLayout = new QVBoxLayout(historyPage);
-            historyReservations = new ReservationPage(reservations, user, historyPage, true);
-            historyLayout->addWidget(new QLabel(QStringLiteral("预约与签到记录")));
+            historyReservations = new ReservationPage(reservations, store, user, historyPage, true);
+            historyLayout->addWidget(new QLabel(QStringLiteral("预约、签到与违约记录")));
             historyLayout->addWidget(historyReservations, 1);
-            historyLayout->addWidget(new QLabel(QStringLiteral("违约记录")));
-            historyLayout->addWidget(attendancePage, 1);
             tabs->addTab(historyPage, QStringLiteral("预约记录"));
         }
         connect(seatPage, &SeatPage::selectionChanged, reservationPage, &ReservationPage::setSelection);
         auto refresh = [=] {
+            if (refreshing)
+                return;
+            refreshing = true;
             const QDateTime now = toMinute(QDateTime::currentDateTime());
+            const OperationResult result = attendance.recordExpiredReservations(now);
+            automaticMessage->setText(result.ok ? QString()
+                : QStringLiteral("自动登记违约失败：%1").arg(result.message));
+            automaticMessage->setVisible(!result.ok);
             clock->setText(QStringLiteral("当前时间：%1").arg(displayTime(now)));
             seatPage->refresh(now);
             reservationPage->refresh();
@@ -213,6 +222,7 @@ public:
                 historyReservations->refresh();
             if (statisticsPage)
                 statisticsPage->refreshStatistics();
+            refreshing = false;
         };
         connect(&store, &JsonStore::dataChanged, this, refresh);
         connect(refreshButton, &QPushButton::clicked, this, refresh);
@@ -224,6 +234,7 @@ public:
     }
     bool loggedOut = false;
 private:
+    bool refreshing = false;
     SeatManager seats;
     ReservationManager reservations;
     AttendanceViolationManager attendance;
@@ -233,6 +244,17 @@ private:
 int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
+    app.setStyleSheet(QStringLiteral(
+        "QPushButton, QToolButton {"
+        " border: 1px solid #9a9a9a; border-radius: 0px;"
+        " padding: 6px 12px; background-color: #f5f5f5; color: #202020; }"
+        "QPushButton:hover, QToolButton:hover { background-color: #e5edf5; }"
+        "QPushButton:pressed, QToolButton:pressed { background-color: #c5d7e8; }"
+        "QPushButton:checked, QToolButton:checked {"
+        " background-color: #c5d7e8; border-color: #3c6d99; }"
+        "QPushButton:focus, QToolButton:focus { border: 2px solid #3c6d99; }"
+        "QPushButton:disabled, QToolButton:disabled {"
+        " background-color: #eeeeee; color: #888888; border-color: #cccccc; }"));
     app.setQuitOnLastWindowClosed(false);
     QObject::connect(&app, &QApplication::lastWindowClosed, &app, &QApplication::quit);
     JsonStore store;

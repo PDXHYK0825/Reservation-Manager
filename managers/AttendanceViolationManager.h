@@ -11,6 +11,8 @@ class AttendanceViolationManager
 public:
     explicit AttendanceViolationManager(JsonStore &store);
 
+    OperationResult checkIn(const User &user, const QDateTime &now);
+
     OperationResult checkIn(const User &user,
                             const QString &reservationId,
                             const QDateTime &now);
@@ -21,6 +23,8 @@ public:
 
     OperationResult revokeViolation(const User &admin,
                                     const QString &violationId);
+
+    OperationResult recordExpiredReservations(const QDateTime &now);
 
     QVector<Violation> listViolations(const User &user) const;
 
@@ -41,8 +45,8 @@ private:
     AttendanceViolationManager &manager;
     const JsonStore &store;
     User user;
-    QComboBox *reservations;
-    QTableWidget *violations;
+    QComboBox *reservations = nullptr;
+    QTableWidget *violations = nullptr;
     QLabel *message;
     QWidget *controlsPanel;
 };

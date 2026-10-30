@@ -5,6 +5,8 @@
 
 namespace {
 const QString kDateTimeFormat = QStringLiteral("yyyy-MM-dd'T'HH:mm");
+// 保留旧版13—20号座位的历史数据，新预约只开放当前的12个座位。
+constexpr int storedSeatLimit = 20;
 
 OperationResult failure(const QString& message)
 {
@@ -88,7 +90,7 @@ bool parseReservation(const QJsonValue& value, Reservation& reservation,
     }
 
     const double seatId = object.value(QStringLiteral("seatId")).toDouble();
-    if (seatId < 1 || seatId > DemoData::seatCount || seatId != static_cast<int>(seatId)) {
+    if (seatId < 1 || seatId > storedSeatLimit || seatId != static_cast<int>(seatId)) {
         error = QStringLiteral("预约记录的座位编号无效。");
         return false;
     }
@@ -140,7 +142,7 @@ bool validateData(const AppData& data, QString& error)
         if (!isUuid(reservation.id) || reservationIds.contains(reservation.id)
             || reservation.studentAccount.trimmed().isEmpty()
             || !validFlag
-            || reservation.seatId < 1 || reservation.seatId > 20
+            || reservation.seatId < 1 || reservation.seatId > storedSeatLimit
             || !reservation.startTime.isValid() || !reservation.endTime.isValid()
             || reservation.endTime <= reservation.startTime
             || !isHalfHourAligned(reservation.startTime)
